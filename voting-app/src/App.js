@@ -1,109 +1,126 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserProvider, Contract, ethers } from 'ethers';
+import { BrowserProvider, Contract, ethers } from "ethers";
 import './App.css';
 
-// Dirección del contrato inteligente desplegado en la red Ethereum.
-const contractAddress = '0xd6DfC5DD49E8A0185b9501A8d238945cD34A88B5';
-// ABI del contrato inteligente para interactuar con sus métodos.
+const contractAddress = '0xd499DE88c1000751Fe13981261Ed499cF82f0D48';
 const contractABI = [
-    {
-        "inputs": [
-            {
-                "internalType": "bool",
-                "name": "_vote",
-                "type": "bool"
-            }
-        ],
-        "name": "vote",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "voter",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "bool",
-                "name": "vote",
-                "type": "bool"
-            }
-        ],
-        "name": "Voted",
-        "type": "event"
-    },
-    {
-        "inputs": [],
-        "name": "getVoteCounts",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "voteCountYes",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "voteCountNo",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "name": "hasVoted",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "noVotes",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "yesVotes",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    }
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "vote",
+				"type": "bool"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "signatureHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "Voted",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "getNoVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getYesVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "hasVoted",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "noVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bool",
+				"name": "_vote",
+				"type": "bool"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "_signatureHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "vote",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "yesVotes",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
 ];
 
-function App() {
+function VotingApp() {
     const [provider, setProvider] = useState(null);
     const [signer, setSigner] = useState(null);
     const [contract, setContract] = useState(null);
@@ -115,52 +132,53 @@ function App() {
             if (window.ethereum) {
                 try {
                     const providerInstance = new BrowserProvider(window.ethereum);
-                    setProvider(providerInstance);
-
-                    const accounts = await providerInstance.send("eth_accounts", []);
-                    if (accounts.length === 0) {
-                        await providerInstance.send("eth_requestAccounts", []);
-                    }
-
                     const signerInstance = await providerInstance.getSigner();
-                    setSigner(signerInstance);
-
                     const contractInstance = new Contract(contractAddress, contractABI, signerInstance);
+
+                    setProvider(providerInstance);
+                    setSigner(signerInstance);
                     setContract(contractInstance);
-
-                    const yesVotes = await contractInstance.yesVotes();
-                    const noVotes = await contractInstance.noVotes();
-
-                    setYesCount(parseInt(yesVotes.toString(), 10));
-                    setNoCount(parseInt(noVotes.toString(), 10));
                 } catch (error) {
                     console.error("Error durante la inicialización:", error);
                 }
             } else {
-                console.error("Core Wallet no está disponible. Asegúrate de que esté instalado.");
+                console.error("MetaMask no está disponible.");
             }
         }
         init();
-    }, []);
+    }, []);    
 
     const handleVote = async (userVote) => {
         if (!signer || !contract) {
             console.error("El contrato o el firmante no están inicializados.");
             return;
         }
-
+    
         try {
-            const tx = await contract.vote(userVote);
+            // Crear el mensaje con el voto
+            const message = JSON.stringify({ vote: userVote ? "yes" : "no" });
+            
+            // Firmar el mensaje
+            const signature = await signer.signMessage(message);
+            
+            // Convertir la firma a bytes32 usando keccak256
+            const signatureHash = ethers.keccak256(ethers.toUtf8Bytes(signature));
+    
+            console.log("Firma hash:", signatureHash);
+    
+            // Llamada al contrato con los parámetros correctos
+            const tx = await contract.vote(userVote, signatureHash);
             await tx.wait();
-
+    
+            // Obtener los resultados de la votación
             const yesVotes = await contract.yesVotes();
             const noVotes = await contract.noVotes();
-            setYesCount(parseInt(yesVotes.toString(), 10));
-            setNoCount(parseInt(noVotes.toString(), 10));
+            setYesCount(yesVotes.toNumber());
+            setNoCount(noVotes.toNumber());
         } catch (error) {
             console.error("Error al votar:", error);
         }
-    };
+    };       
 
     return (
         <div className="container">
@@ -170,11 +188,11 @@ function App() {
             <p>Votes for "No": {noCount}</p>
             <p>Total votes: {yesCount + noCount}</p>
             <div className="buttons">
-                <button onClick={() => handleVote(true)} className="yes">Votar Sí</button>
-                <button onClick={() => handleVote(false)} className="no">Votar No</button>
+                <button onClick={() => handleVote(true)} className="yes">Vote Yes</button>
+                <button onClick={() => handleVote(false)} className="no">Vote No</button>
             </div>
         </div>
     );
 }
 
-export default App;
+export default VotingApp;
