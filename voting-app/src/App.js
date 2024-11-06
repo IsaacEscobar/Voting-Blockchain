@@ -1,123 +1,78 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserProvider, Contract, ethers } from "ethers";
+import { BrowserProvider, Contract, keccak256, toUtf8Bytes, ethers } from "ethers";
 import './App.css';
 
-const contractAddress = '0xd499DE88c1000751Fe13981261Ed499cF82f0D48';
+const contractAddress = '0xe9e0453eC5e34754639E7b5e32E643b30c4a4D66';
 const contractABI = [
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "voter",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "bool",
-				"name": "vote",
-				"type": "bool"
-			},
-			{
-				"indexed": false,
-				"internalType": "bytes32",
-				"name": "signatureHash",
-				"type": "bytes32"
-			}
-		],
-		"name": "Voted",
-		"type": "event"
-	},
-	{
-		"inputs": [],
-		"name": "getNoVotes",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getYesVotes",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "hasVoted",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "noVotes",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bool",
-				"name": "_vote",
-				"type": "bool"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "_signatureHash",
-				"type": "bytes32"
-			}
-		],
-		"name": "vote",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "yesVotes",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
+    {
+        "inputs": [],
+        "name": "yesVotes",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "noVotes",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bool",
+                "name": "_vote",
+                "type": "bool"
+            },
+            {
+                "internalType": "bytes32",
+                "name": "_signatureHash",
+                "type": "bytes32"
+            }
+        ],
+        "name": "vote",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "voter",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "vote",
+                "type": "bool"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes32",
+                "name": "signatureHash",
+                "type": "bytes32"
+            }
+        ],
+        "name": "Voted",
+        "type": "event"
+    }
 ];
 
 function VotingApp() {
@@ -127,6 +82,7 @@ function VotingApp() {
     const [yesCount, setYesCount] = useState(0);
     const [noCount, setNoCount] = useState(0);
 
+    // Función para inicializar la conexión y el contrato
     useEffect(() => {
         async function init() {
             if (window.ethereum) {
@@ -134,10 +90,13 @@ function VotingApp() {
                     const providerInstance = new BrowserProvider(window.ethereum);
                     const signerInstance = await providerInstance.getSigner();
                     const contractInstance = new Contract(contractAddress, contractABI, signerInstance);
-
+    
                     setProvider(providerInstance);
                     setSigner(signerInstance);
                     setContract(contractInstance);
+
+                    // Llamada para cargar los votos actuales
+                    await loadVotes(contractInstance);
                 } catch (error) {
                     console.error("Error durante la inicialización:", error);
                 }
@@ -146,39 +105,44 @@ function VotingApp() {
             }
         }
         init();
-    }, []);    
+    }, []);
+
+    // Función para cargar votos actuales
+    const loadVotes = async (contractInstance) => {
+        try {
+            const yesVotes = await contractInstance.yesVotes();
+            const noVotes = await contractInstance.noVotes();
+            
+            setYesCount(parseInt(yesVotes.toString()));
+            setNoCount(parseInt(noVotes.toString()));
+        } catch (error) {
+            console.error("Error al cargar votos:", error);
+        }
+    };
 
     const handleVote = async (userVote) => {
+        if (!signer) console.error("Signer no inicializado");
+        if (!contract) console.error("Contrato no inicializado");
+
         if (!signer || !contract) {
             console.error("El contrato o el firmante no están inicializados.");
             return;
         }
-    
+
         try {
-            // Crear el mensaje con el voto
             const message = JSON.stringify({ vote: userVote ? "yes" : "no" });
-            
-            // Firmar el mensaje
             const signature = await signer.signMessage(message);
-            
-            // Convertir la firma a bytes32 usando keccak256
-            const signatureHash = ethers.keccak256(ethers.toUtf8Bytes(signature));
-    
-            console.log("Firma hash:", signatureHash);
-    
-            // Llamada al contrato con los parámetros correctos
+            const signatureHash = keccak256(toUtf8Bytes(signature));
+
             const tx = await contract.vote(userVote, signatureHash);
             await tx.wait();
-    
-            // Obtener los resultados de la votación
-            const yesVotes = await contract.yesVotes();
-            const noVotes = await contract.noVotes();
-            setYesCount(yesVotes.toNumber());
-            setNoCount(noVotes.toNumber());
+
+            // Actualizar los votos después de votar
+            await loadVotes(contract);
         } catch (error) {
             console.error("Error al votar:", error);
         }
-    };       
+    };
 
     return (
         <div className="container">
