@@ -9,6 +9,9 @@ contract Voting {
     // Mapping para registrar si una dirección ya votó
     mapping(address => bool) public hasVoted;
 
+    // Mapping para almacenar el hash de la firma de cada usuario
+    mapping(address => bytes32) public voteSignatureHash;
+    
     // Evento para registrar cuando un voto es emitido
     event Voted(address indexed voter, bool vote, bytes32 signatureHash);
 
